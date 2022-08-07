@@ -1,8 +1,13 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.authentication import TokenAuthentication
+
 from profiles_api import serializers
+from profiles_api import models
+from profiles_api import permissions
 
 class HelloApiView(APIView):
     """Test API View"""
@@ -41,6 +46,64 @@ class HelloApiView(APIView):
     def delete(self, request, pk=None):
         """Delete an object"""
         return Response({'mehtod': 'DELETE'})
+
+
+class UserProfileView(APIView):
+    """Handle creating and updating profiles"""
+    serializer_class = serializers.UserProfileSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.UpdateOwnProfile]
+
+    def get(self, request, pk=None, format=None):
+        """Get all profiles"""
+        if pk:
+            user = get_object_or_404(models.UserProfile.objects.all(), pk=pk)
+            serializer = self.serializer_class(user)
+            return Response({'user': serializer.data})
+        else:
+            users = models.UserProfile.objects.all()
+            serializer = self.serializer_class(users, many=True)
+            return Response({'users': serializer.data})
+
+    def post(self, request):
+        """Create new profile"""
+        serializer = self.serializer_class(data=request.data)
+
+        if serializer.is_valid():
+            user_saved = serializer.save()
+            return Response({"Success": "User created succesfully"}, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk=None):
+        """update existing profile"""
+        user = get_object_or_404(models.UserProfile.objects.all(), pk=pk)
+        serializer = self.serializer_class(instance=user,data=request.data)
+
+        if serializer.is_valid():
+            user_saved = serializer.save()
+            return Response({"Success": "User updated succesfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk=None):
+        """partial update existing profile"""
+        user = get_object_or_404(models.UserProfile.objects.all(), pk=pk)
+        serializer = self.serializer_class(instance=user,data=request.data, partial=True)
+
+        if serializer.is_valid():
+            user_saved = serializer.save()
+            return Response({"Success": "User updated succesfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk=None):
+        """delete existing profile"""
+        user = get_object_or_404(models.UserProfile.objects.all(), pk=pk)
+        user.delete()
+
+        return Response({"Success": "User deleted succesfully"}, status=status.HTTP_200_OK)
+
 
 
 class HelloViewSet(viewsets.ViewSet):
